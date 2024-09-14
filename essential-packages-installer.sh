@@ -1,26 +1,43 @@
 #!/bin/bash
 
-# Check if the OS supports .deb or .rpm packages
+# Function to validate yes/no inputs
+validate_yes_no() {
+    local answer
+    while true; do
+        read -p "$1 (yes/y or no/n): " answer
+        case "$answer" in
+            [yY][eE][sS]|[yY]) echo "yes"; break;;
+            [nN][oO]|[nN]) echo "no"; break;;
+            *) clear; echo "XXX     Invalid input. Please enter yes/y or no/n.";;
+        esac
+    done
+}
+
 if command -v dpkg &> /dev/null; then
     PACKAGE_TYPE="deb"
 elif command -v rpm &> /dev/null; then
     PACKAGE_TYPE="rpm"
 else
-    echo "Unsupported package management system. Only .deb and .rpm are supported."
+    echo "XXX     Unsupported package management system. Only .deb and .rpm are supported."
     exit 1
 fi
+clear
+echo "###     Do you want to continue online installation or using offline packages?"
+internet_choice=$(validate_yes_no ">>>     yes: ONLINE | no : OFFLINE?")
 
-read -p "Do you want to continue with the internet (yes/no)? " internet_choice
-
-# General package list - custom your proper package list here
+# General package list
 general_packages=(curl screen tmux wget build-essential net-tools)
 # Docker-related packages
 docker_packages=(docker-io docker-ce docker-compose docker-cli)
+clear
+# Print the list of packages to install
+echo "###      General Packages to be installed:"
+echo "${general_packages[@]}"
+echo "###      Docker Packages to be installed (optional)}"
+echo "${docker_packages[@]}"
 
-echo "General Packages to be installed: ${general_packages[@]}"
-echo "Docker Packages to be installed (optional): ${docker_packages[@]}"
-
-read -p "Do you want to install Docker engine (yes/no)? " install_docker_choice
+# Ask if the user wants to install Docker and related packages
+install_docker_choice=$(validate_yes_no ">>>     Do you want to install Docker and related packages")
 
 # Merge general and docker packages if user agrees to install Docker
 if [[ "$install_docker_choice" == "yes" ]]; then
@@ -29,6 +46,7 @@ else
     packages=("${general_packages[@]}")
 fi
 
+# Initialize arrays to track installation status
 installed=()
 not_installed=()
 
@@ -78,15 +96,24 @@ else
     done
 fi
 
-# final report
+# Clear screen and report
 clear
-echo "Installation Summary:"
-echo "Successfully installed packages:"
-for pkg in "${installed[@]}"; do
-    echo "- $pkg"
-done
+echo "###     Installation Summary:"
+if [ ${#installed[@]} -eq 0 ]; then
+    echo "XXX     Successfully installed: No packages were installed successfully."
+else
+    echo "###     Successfully installed:"
+    for pkg in "${installed[@]}"; do
+        echo "- $pkg"
+    done
+fi
 
-echo "Failed to install:"
-for pkg in "${not_installed[@]}"; do
-    echo "- $pkg"
-done
+if [ ${#not_installed[@]} -eq 0 ]; then
+    echo "###     Failed to install: None"
+else
+    echo "XXX     Failed to install:"
+    for pkg in "${not_installed[@]}"; do
+        echo "- $pkg"
+    done
+fi
+
